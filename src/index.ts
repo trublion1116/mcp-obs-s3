@@ -324,7 +324,7 @@ function generateSignedUrl(
 
 async function startHttpServer(port: number): Promise<void> {
   const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // stateless mode
+    sessionIdGenerator: () => crypto.randomUUID(), // stateful mode: required for multi-request sessions
   });
 
   const mcpServer = new McpServer({
@@ -335,18 +335,20 @@ async function startHttpServer(port: number): Promise<void> {
   await mcpServer.connect(transport);
 
   const httpServer = http.createServer(async (req, res) => {
-    // Catch-all: all MCP requests go through the transport
     try {
-      const chunks: Uint8Array[] = [];
-      for await (const chunk of req) {
-        chunks.push(chunk);
-      }
-      const body = Buffer.concat(chunks).toString("utf-8");
+      // Parse body for POST requests; GET/DELETE have no body
       let parsed: unknown;
-      try {
-        parsed = JSON.parse(body);
-      } catch {
-        parsed = undefined;
+      if (req.method === "POST") {
+        const chunks: Uint8Array[] = [];
+        for await (const chunk of req) {
+          chunks.push(chunk);
+        }
+        const body = Buffer.concat(chunks).toString("utf-8");
+        try {
+          parsed = JSON.parse(body);
+        } catch {
+          parsed = undefined;
+        }
       }
       await transport.handleRequest(req, res, parsed);
     } catch (err) {
