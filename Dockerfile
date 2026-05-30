@@ -21,5 +21,9 @@ RUN npm install --omit=dev && npm cache clean --force
 COPY --from=builder /app/dist/ ./dist/
 
 ENV NODE_ENV=production
+ENV MCP_TRANSPORT=http
+ENV MCP_PORT=3100
+
+EXPOSE 3100
 
 ENTRYPOINT ["node", "dist/index.js"]
